@@ -189,8 +189,8 @@ export class ObservableQuery<
     const opDef = getOperationDefinition(this.query);
     this.queryName = opDef && opDef.name && opDef.name.value;
     if (refetchOnFocus && !this.queryManager.ssrMode && window && window.addEventListener) {
-      console.log('add refetchOnFocusListener');
-      window.addEventListener('visibilitychange', this.refetchOnFocusListener, false)
+      console.log('add listeners');
+      window.addEventListener('visibilitychange', this.onVisibilityChange, false)
       window.addEventListener('focus', this.onFocus, false)
       window.addEventListener('blur', this.onBlur, false)
     }
@@ -225,11 +225,11 @@ export class ObservableQuery<
     }
   }
 
-  private refetchOnFocusListener = (event?: Event) => {
-    console.log('refetchOnFocusListener', event);
+  private onVisibilityChange = (event?: Event) => {
+    console.log('onVisibilityChange', event);
     const visibilityState = (typeof document !== 'undefined') && document.visibilityState
     const isVisible = typeof visibilityState === 'undefined' || visibilityState !== 'hidden'
-    console.log('refetchOnFocusListener', { visibilityState, isVisible });
+    console.log('onVisibilityChange', { visibilityState, isVisible });
     this.updateVisible(isVisible);
   }
 
@@ -969,8 +969,8 @@ Did you mean to call refetch(variables) instead of refetch({ variables })?`);
     this.queryManager.stopQuery(this.queryId);
     this.observers.clear();
     if (window && typeof window.removeEventListener === 'function') {
-      console.log('remove refetchOnFocusListener');
-      window.removeEventListener('visibilitychange', this.refetchOnFocusListener);
+      console.log('remove listeners');
+      window.removeEventListener('visibilitychange', this.onVisibilityChange);
       window.removeEventListener('focus', this.onFocus);
       window.removeEventListener('blur', this.onBlur);
     }
