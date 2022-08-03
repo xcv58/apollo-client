@@ -187,6 +187,27 @@ export class ObservableQuery<
     this.queryName = opDef && opDef.name && opDef.name.value;
   }
 
+  public focus = () => {
+    console.log('focus');
+    if (!this.options.refetchOnFocus) {
+      return;
+    }
+    if (this.pollingInfo?.interval) {
+      console.log('reset polling');
+      const pollInterval = this.pollingInfo?.interval;
+      this.stopPolling();
+      this.startPolling(pollInterval);
+    }
+    console.log('refetch');
+    // Since startPolling won't trigger network call immediately, call refetch
+    // to trigger it immediately.
+    this.refetch();
+  }
+
+  private get pausePolling(): boolean {
+    return Boolean(this.options.refetchOnFocus) && !this.queryManager.isFocused
+  }
+
   public result(): Promise<ApolloQueryResult<TData>> {
     return new Promise((resolve, reject) => {
       // TODO: this code doesn’t actually make sense insofar as the observer
@@ -733,7 +754,12 @@ Did you mean to call refetch(variables) instead of refetch({ variables })?`);
 
     const maybeFetch = () => {
       if (this.pollingInfo) {
-        if (!isNetworkRequestInFlight(this.queryInfo.networkStatus)) {
+        if (this.pausePolling) {
+          console.log('skip polling since it is paused');
+          return poll();
+        }
+        if (!isNetworkRequestInFlight(this.queryInfo.networkStatus) && !this.pausePolling) {
+          console.log('reobserve, pausePolling:', this.pausePolling);
           this.reobserve({
             fetchPolicy: "network-only",
           }, NetworkStatus.poll).then(poll, poll);

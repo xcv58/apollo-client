@@ -300,6 +300,13 @@ export class QueryInfo {
     }
   }
 
+  public focus () {
+    const oq = this.observableQuery;
+    if (oq) {
+      oq.focus();
+    }
+  }
+
   // This method is a no-op by default, until/unless overridden by the
   // updateWatch method.
   private cancel() {}

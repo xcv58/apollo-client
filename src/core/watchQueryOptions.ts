@@ -110,6 +110,12 @@ export interface QueryOptions<TVariables = OperationVariables, TData = any> {
    * Defaults to false.
    */
   canonizeResults?: boolean;
+
+  /**
+   * The time interval (in milliseconds) on which this query should be
+   * refetched from the server.
+   */
+  refetchOnFocus?: boolean;
 }
 
 /**
