@@ -100,8 +100,6 @@ export class ObservableQuery<
     timeout: ReturnType<typeof setTimeout>;
   };
 
-  private pausePolling: boolean;
-
   constructor({
     queryManager,
     queryInfo,
@@ -168,7 +166,6 @@ export class ObservableQuery<
         // Make sure we don't store "standby" as the initialFetchPolicy.
         fetchPolicy === "standby" ? defaultFetchPolicy : fetchPolicy
       ),
-      refetchOnFocus,
     } = options;
 
     this.options = {
@@ -188,49 +185,27 @@ export class ObservableQuery<
 
     const opDef = getOperationDefinition(this.query);
     this.queryName = opDef && opDef.name && opDef.name.value;
-    if (refetchOnFocus && !this.queryManager.ssrMode && window && window.addEventListener) {
-      console.log('add listeners');
-      window.addEventListener('visibilitychange', this.onVisibilityChange, false)
-      window.addEventListener('focus', this.onFocus, false)
-      window.addEventListener('blur', this.onBlur, false)
+  }
+
+  public focus = () => {
+    console.log('focus');
+    if (!this.options.refetchOnFocus) {
+      return;
     }
-  }
-
-  private onFocus = (event: Event) => {
-    console.log('onFocus', event);
-    this.updateVisible(true);
-  }
-
-  private onBlur = (event: Event) => {
-    console.log('onBlur', event);
-    this.updateVisible(false);
-  }
-
-  private updateVisible = (isVisible: boolean) => {
-    console.log('updateVisible:', isVisible);
-    if (isVisible) {
-      this.pausePolling = false;
-      if (this.pollingInfo?.interval) {
-        console.log('reset polling');
-        const pollInterval = this.pollingInfo?.interval;
-        this.stopPolling();
-        this.startPolling(pollInterval);
-      }
-      console.log('refetch');
-      // Since startPolling won't trigger network call immediately, call refetch
-      // to trigger it immediately.
-      this.refetch();
-    } else {
-      this.pausePolling = true;
+    if (this.pollingInfo?.interval) {
+      console.log('reset polling');
+      const pollInterval = this.pollingInfo?.interval;
+      this.stopPolling();
+      this.startPolling(pollInterval);
     }
+    console.log('refetch');
+    // Since startPolling won't trigger network call immediately, call refetch
+    // to trigger it immediately.
+    this.refetch();
   }
 
-  private onVisibilityChange = (event?: Event) => {
-    console.log('onVisibilityChange', event);
-    const visibilityState = (typeof document !== 'undefined') && document.visibilityState
-    const isVisible = typeof visibilityState === 'undefined' || visibilityState !== 'hidden'
-    console.log('onVisibilityChange', { visibilityState, isVisible });
-    this.updateVisible(isVisible);
+  private get pausePolling(): boolean {
+    return Boolean(this.options.refetchOnFocus) && !this.queryManager.isFocused
   }
 
   public result(): Promise<ApolloQueryResult<TData>> {
@@ -968,12 +943,6 @@ Did you mean to call refetch(variables) instead of refetch({ variables })?`);
     this.subscriptions.clear();
     this.queryManager.stopQuery(this.queryId);
     this.observers.clear();
-    if (window && typeof window.removeEventListener === 'function') {
-      console.log('remove listeners');
-      window.removeEventListener('visibilitychange', this.onVisibilityChange);
-      window.removeEventListener('focus', this.onFocus);
-      window.removeEventListener('blur', this.onBlur);
-    }
     this.isTornDown = true;
   }
 }

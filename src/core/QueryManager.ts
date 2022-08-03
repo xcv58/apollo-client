@@ -87,6 +87,8 @@ export class QueryManager<TStore> {
   public readonly assumeImmutableResults: boolean;
   public readonly ssrMode: boolean;
 
+  public isFocused: boolean;
+
   private queryDeduplication: boolean;
   private clientAwareness: Record<string, string> = {};
   private localState: LocalState<TStore>;
@@ -136,6 +138,41 @@ export class QueryManager<TStore> {
     if ((this.onBroadcast = onBroadcast)) {
       this.mutationStore = Object.create(null);
     }
+    const visibilityState = (typeof document !== 'undefined') && document.visibilityState;
+    this.isFocused = typeof visibilityState === 'undefined' || visibilityState !== 'hidden';
+    if (!this.ssrMode && typeof window !== 'undefined' && window && window.addEventListener) {
+      console.log('add listeners');
+      window.addEventListener('visibilitychange', this.onVisibilityChange, false)
+      window.addEventListener('focus', this.onFocus, false)
+      window.addEventListener('blur', this.onBlur, false)
+    }
+  }
+
+  private onVisibilityChange = (event?: Event) => {
+    console.log('onVisibilityChange', event);
+    const visibilityState = (typeof document !== 'undefined') && document.visibilityState
+    const isVisible = typeof visibilityState === 'undefined' || visibilityState !== 'hidden'
+    console.log('onVisibilityChange', { visibilityState, isVisible });
+    if (isVisible) {
+      this.onFocus();
+    } else {
+      this.onBlur();
+    }
+  }
+
+  private onFocus = (event?: Event) => {
+    console.log('onFocus', event);
+    this.isFocused = true;
+    this.queries.forEach(({ observableQuery: oq, document }, queryId) => {
+      if (oq) {
+        oq.focus();
+      }
+    });
+  }
+
+  private onBlur = (event?: Event) => {
+    console.log('onBlur', event);
+    this.isFocused = false;
   }
 
   /**
@@ -150,6 +187,13 @@ export class QueryManager<TStore> {
     this.cancelPendingFetches(
       new InvariantError('QueryManager stopped while query was in flight'),
     );
+
+    if (typeof window !== 'undefined' && window && typeof window.removeEventListener === 'function') {
+      console.log('remove listeners');
+      window.removeEventListener('visibilitychange', this.onVisibilityChange);
+      window.removeEventListener('focus', this.onFocus);
+      window.removeEventListener('blur', this.onBlur);
+    }
   }
 
   private cancelPendingFetches(error: Error) {
